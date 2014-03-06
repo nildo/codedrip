@@ -8,7 +8,7 @@ module DisseminationC {
     interface Receive;
     interface TrickleTimer[uint8_t key];
     interface Random;
-    interface SeedInit;
+    interface ParameterInit<uint16_t> as SeedInit;
     interface SplitControl as SerialControl;
     interface AMSend as SerialSend;
     interface Timer<TMilli>;
