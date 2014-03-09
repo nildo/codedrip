@@ -19,20 +19,20 @@ implementation {
   content_t contents[MAX_STORE];
   uint8_t next_content = 0;
   uint8_t next_send = 0;
-  
+
   content_t combinations[MAX_CSTORE];
   uint8_t next_combination = 0;
-  
+
   message_t m_buf;
-  
+
   message_t s_buf;
   serial_message_t * sMsg;
-  
+
   uint16_t sent = 0;
   uint16_t counter = 0;
-  
+
   /* FUNCTIONS */
-  
+
   void sendSerial() {
     sMsg = (serial_message_t *) call SerialSend.getPayload(&s_buf, sizeof(serial_message_t));
     sMsg->nodeid = TOS_NODE_ID;
@@ -40,7 +40,7 @@ implementation {
     sMsg->counter = counter;
     call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
   }
-  
+
   // Verifica se um conteudo é combinação.
   bool isCombination(content_t *content) {
     uint8_t i, count = 0;
@@ -54,7 +54,17 @@ implementation {
     }
     return FALSE;
   }
-  
+    // Verifica se um conteudo é combinação.
+  uint8_t nCombinations(content_t *content) {
+    uint8_t i, count = 0;
+    for (i = 0; i < MAX_COMBINATIONS; i++) {
+      if (content->ids[i] != 0) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   // Adiciona um conteudo à lista.
   bool addContent(content_t *content) {
     if (content->ids[0] == 0 || content->ids[0]-1 > MAX_STORE) {
@@ -63,7 +73,7 @@ implementation {
     contents[content->ids[0]-1] = *content;
     next_content++;
     return TRUE;
-    
+
     /*if (next_content < MAX_STORE - 1) {
       contents[next_content] = *content;
       next_content++;
@@ -71,7 +81,7 @@ implementation {
     }
     return FALSE;*/
   }
-  
+
   // Adiciona combinação à lista.
   bool addCombination(content_t *comb) {
     if (next_combination < MAX_CSTORE - 1) {
@@ -81,7 +91,7 @@ implementation {
     }
     return FALSE;
   }
-  
+
   // Remove um conteúdo da lista.
   void removeContent(uint8_t c) {
     uint8_t i;
@@ -90,7 +100,7 @@ implementation {
     }
     next_content--;
   }
-  
+
   // Verifica se um conteúdo é igual ao outro.
   bool isEqual(content_t *c1, content_t *c2) {
     uint8_t i, j;
@@ -98,6 +108,7 @@ implementation {
     if (c1->content != c2->content) {
       return FALSE;
     }
+    //Verifica se possuem a mesma combinacao de ids, ordenados ou nao
     for (i = 0; i < MAX_COMBINATIONS; i++) {
       if (c1->ids[i] != 0) {
         found = FALSE;
@@ -114,7 +125,7 @@ implementation {
     }
     return TRUE;
   }
-  
+
   // Combina dois conteúdos.
   content_t combine(content_t *c1, content_t *c2) {
     content_t result;
@@ -145,8 +156,10 @@ implementation {
           }
         }
         if (!found) {
-          result.ids[count] = c2->ids[i];
-          count++;
+          if(count < MAX_COMBINATIONS){
+            result.ids[count] = c2->ids[i];
+            count++;
+          }
           if (count > MAX_COMBINATIONS) {
             dbg("All", "%s Error: MAX_COMBINATIONS exceeded.\n", sim_time_string());
             for (j = 0; j < MAX_COMBINATIONS; j++) {
@@ -160,14 +173,16 @@ implementation {
         }
       }
     }
+    //decodifica, tira do pacote id(s) decodificado(s)
     while (count < MAX_COMBINATIONS) {
       result.ids[count] = 0;
       count++;
     }
+
     result.content = c1->content ^ c2->content;
     return result;
   }
-  
+
   // Verifica se o conteúdo já está na lista.
   bool inContents(content_t *content) {
     if (contents[content->ids[0]-1].ids[0] == 0) {
@@ -182,14 +197,15 @@ implementation {
     }
     return FALSE;*/
   }
-  
+
+
   // Verifica se o conteúdo com o id passado está na lista.
   bool idInContents(uint8_t id) {
     if (contents[id-1].ids[0] == 0) {
       return FALSE;
     }
     return TRUE;
-    
+
     /*uint8_t i;
     for (i = 0; i < next_content; i++) {
       if (contents[i].ids[0] == id) {
@@ -198,7 +214,17 @@ implementation {
     }
     return FALSE;*/
   }
-  
+    // Verifica se tem id na mensagem combinada.
+  bool idInCombination(uint8_t id, content_t *comb) {
+    uint8_t i;
+    for (i = 0; i < MAX_COMBINATIONS; i++) {
+      if (comb->ids[i] == id) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
   // Verifica se a combinação já está na lista.
   bool inCombinations(content_t *content) {
     uint8_t i;
@@ -209,65 +235,67 @@ implementation {
     }
     return FALSE;
   }
-  
+
   /* EVENTS */
-  
+
   event void Boot.booted() {
     dbg("All", "%s Booted\n", sim_time_string());
     call AMControl.start();
     call SerialControl.start();
   }
-  
+
   event void AMControl.startDone(error_t error) {
     if (error == SUCCESS) {
       dbg("All", "%s Radio Started\n", sim_time_string());
-    } else {
+    }
+    else {
       dbg("All", "%s Error Radio Start\n", sim_time_string());
       call AMControl.start();
     }
   }
-  
+
   event void SerialControl.startDone(error_t error) {
     if (error != SUCCESS) {
       call SerialControl.start();
-    } else {
+    }
+    else {
       call Timer.startOneShot(80000U);
     }
   }
-  
+
   event void AMControl.stopDone(error_t error) {
     dbg("All", "%s Radio Stop Done\n", sim_time_string());
   }
-  
+
   event void AMSend.sendDone(message_t *msg, error_t error) {
     dbg("All", "%s Send Done\n", sim_time_string());
   }
-  
+
   event void SerialControl.stopDone(error_t error) {
-    
+
   }
-  
+
   event void SerialSend.sendDone(message_t * msg, error_t error) {
     dbg("All", "%s Uart Send Done\n", sim_time_string());
   }
-  
+
   event message_t* Receive.receive(message_t *msg, void *payload, uint8_t len) {
     uint16_t randomNumber = 0;
     dissemination_message_t *dMsg = (dissemination_message_t*) payload;
     content_t content = dMsg->content;
-    
+
     dbg("All", "%s Received %d+%d from %d\n", sim_time_string(), content.ids[0], content.ids[1], dMsg->nodeid);
     if (!isCombination(&content)) {
-      
+
       // É uma mensagem original.
-      
+
       if (!inContents(&content)) {
-        
+
         // Não possui a mensagem recebida.
-        
+
         int i;
         content_t aux;
-        
+
         if (addContent(&content)) {
           dbg("All", "%s Stored %d+%d\n", sim_time_string(), content.ids[0], content.ids[1]);
           counter++;
@@ -276,12 +304,13 @@ implementation {
           //sMsg->key = content.ids[0];
           //sMsg->counter = counter;
           //call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
-        } else {
+        }
+        else {
           dbg("All", "%s Error storing %d+%d\n", sim_time_string(), content.ids[0], content.ids[1]);
         }
-        
+
         // Tentar decodificar as combinações.
-        
+
         for (i = 0; i < next_combination; i++) {
           aux = combine(&content, &combinations[i]);
           if (aux.ids[0] != 0) {
@@ -295,34 +324,48 @@ implementation {
                   //sMsg->key = aux.ids[0];
                   //sMsg->counter = counter;
                   //call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
-                } else {
+                }
+                else {
+                  dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                }
+              }
+            }
+            // Decodifica combinacao de 3 mensagens para combinacao de 2 mensagens
+            else{
+              if (!inCombinations(&aux)) {
+                if (addCombination(&aux)) {
+                  dbg("All", "%s Stored combination %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                }
+                else {
                   dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
                 }
               }
             }
           }
         }
-        
-      } else {
-        
+
+      }
+      else {
+
         // Já possui a mensagem recebida.
         randomNumber = call Random.rand16();
         if (randomNumber % 100 < SUPR)
           call TrickleTimer.incrementCounter[content.ids[0] - 1]();
-        
+
       }
-    } else {
-      
+    }
+    else {
+
       // É uma combinação.
-      
+
       if (!inCombinations(&content)) {
-        
+
         // Não possui a combinação.
-        
+
         uint8_t i;
         content_t aux;
         bool ok = TRUE;
-        
+
         for (i = 0; i < MAX_COMBINATIONS; i++) {
           if (!idInContents(content.ids[i])) {
             ok = FALSE;
@@ -332,15 +375,54 @@ implementation {
               call TrickleTimer.incrementCounter[content.ids[i]-1]();
           }*/
         }
-        
+
         // Se já possui todas as mensagens, sai.
         if (ok) {
           //sendSerial();
           return msg;
         }
-        
+
         ok = FALSE;
-        
+        // Tentar decodificar as combinações.
+        for (i = 0; i < MAX_CSTORE; i++) {
+          if (combinations[i].ids[0] != 0) {
+            aux = combine(&content, &combinations[i]);
+            if (aux.ids[0] != 0) {
+              //Decodificou para mensagem original
+              if (!isCombination(&aux)) {
+                if (!inContents(&aux)) {
+                  if (addContent(&aux)) {
+                    dbg("All", "%s Stored %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                    counter++;
+                    call TrickleTimer.start[aux.ids[0] - 1]();
+                    call TrickleTimer.reset[aux.ids[0] - 1]();
+                    //sMsg->key = aux.ids[0];
+                    //sMsg->counter = counter;
+                    //call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
+                    ok = TRUE;
+                  }
+                  else {
+                    dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                  }
+                }
+              }
+              else{
+                // Decodifica combinacao de 3 mensagens para combinacao de 2 mensagens
+                if (!inCombinations(&aux)) {
+                  if (addCombination(&aux)) {
+                    dbg("All", "%s Stored combination %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                    ok = TRUE;
+                  }
+                  else {
+                  dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Tentar decodificar a combinacao recebida pelas mensagens originais armazenadas.
         for (i = 0; i < MAX_STORE; i++) {
           if (contents[i].ids[0] != 0) {
             aux = combine(&content, &contents[i]);
@@ -356,8 +438,21 @@ implementation {
                     //sMsg->counter = counter;
                     //call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
                     ok = TRUE;
-                  } else {
+                  }
+                  else {
                     dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                  }
+                }
+              }
+              else{
+                // Decodifica combinacao de 3 mensagens para combinacao de 2 mensagens
+                if (!inCombinations(&aux)) {
+                  if (addCombination(&aux)) {
+                    dbg("All", "%s Stored combination %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                    ok = TRUE;
+                  }
+                  else {
+                  dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
                   }
                 }
               }
@@ -368,7 +463,8 @@ implementation {
           if (addCombination(&content)) {
             dbg("All", "%s Stored %d+%d\n", sim_time_string(), content.ids[0], content.ids[1]);
             //call TrickleTimer.reset[0]();
-          } else {
+          }
+          else {
             dbg("All", "%s Error storing %d+%d\n", sim_time_string(), content.ids[0], content.ids[1]);
           }
         }
@@ -378,32 +474,57 @@ implementation {
     //sendSerial();
     return msg;
   }
-  
+
   event void TrickleTimer.fired[uint8_t id]() {
     uint8_t rand_num = call Random.rand16();
+    uint8_t i;
+    bool comb3 = FALSE;
     dbg("All", "%s TrickleTimer %d fired.\n", sim_time_string(), id);
     if (next_content > 0) {
+
       dissemination_message_t *msg = call AMSend.getPayload(&m_buf, sizeof(dissemination_message_t));
       msg->nodeid = TOS_NODE_ID;
+
+      //Mantem original
       if (rand_num % 100 >= COMB || rand_num % MAX_STORE == id || next_content < 2) {
         msg->content = contents[id];
-      } else {
+      }
+      //Combina
+      else {
         while (contents[rand_num % MAX_STORE].ids[0] == 0 || id == rand_num % MAX_STORE) {
           rand_num++;
         }
-        msg->content = combine(&contents[id], &contents[rand_num % MAX_STORE]);
+        //Tenta obter combinacao de 3 mensagens
+        for (i = 0; i < MAX_CSTORE; i++) {
+          if (combinations[i].ids[0] != 0) {
+            if( (nCombinations(&combinations[i])) == 2 ){
+              if( !idInCombination(contents[id].ids[0], &combinations[i]) ){
+                msg->content = combine(&contents[id], &combinations[i]);
+                comb3 = TRUE;
+                break;
+              }
+            }
+          }
+        }
+        //Caso nao combine 3 mensagens, combine 2 mensagens
+        if (!comb3){
+          msg->content = combine(&contents[id], &contents[rand_num % MAX_STORE]);
+        }
       }
+
       if (call AMSend.send(AM_BROADCAST_ADDR, &m_buf, sizeof(dissemination_message_t)) == SUCCESS) {
         sent++;
         //sendSerial();
         //call SerialSend.send(AM_BROADCAST_ADDR, &m_buf, sizeof(dissemination_message_t));
         dbg("All", "%s Sent %d+%d\n", sim_time_string(), msg->content.ids[0], msg->content.ids[1]);
-      } else {
+      }
+      else {
         dbg("All", "%s Error Sending %d\n", sim_time_string(), msg->content.ids[0]);
       }
+
     }
   }
-  
+
   event void Timer.fired() {
     if (call Timer.isOneShot()) {
       if (TOS_NODE_ID == ORIGIN_NODE) {
@@ -425,8 +546,9 @@ implementation {
         }
       }
       call Timer.startPeriodic(1000);
-    } else {
-      sendSerial();
+    }
+    else {
+        sendSerial();
     }
   }
 }
