@@ -98,6 +98,7 @@ implementation {
     if (c1->content != c2->content) {
       return FALSE;
     }
+    //Verifica se possuem a mesma combinacao de ids, ordenados ou nao
     for (i = 0; i < MAX_COMBINATIONS; i++) {
       if (c1->ids[i] != 0) {
         found = FALSE;
@@ -145,8 +146,10 @@ implementation {
           }
         }
         if (!found) {
-          result.ids[count] = c2->ids[i];
-          count++;
+          if(count < MAX_COMBINATIONS){
+            result.ids[count] = c2->ids[i];
+            count++;
+          }
           if (count > MAX_COMBINATIONS) {
             dbg("All", "%s Error: MAX_COMBINATIONS exceeded.\n", sim_time_string());
             for (j = 0; j < MAX_COMBINATIONS; j++) {
@@ -160,10 +163,12 @@ implementation {
         }
       }
     }
+    //decodifica, tira do pacote id(s) decodificado(s)
     while (count < MAX_COMBINATIONS) {
       result.ids[count] = 0;
       count++;
     }
+
     result.content = c1->content ^ c2->content;
     return result;
   }
@@ -182,6 +187,7 @@ implementation {
     }
     return FALSE;*/
   }
+
   
   // Verifica se o conteúdo com o id passado está na lista.
   bool idInContents(uint8_t id) {
@@ -300,6 +306,21 @@ implementation {
                 }
               }
             }
+            else{
+              if (!inCombinations(&aux)) {
+                if (addCombination(&aux)) {
+                  dbg("All", "%s Stored combination %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                  counter++;
+                  call TrickleTimer.start[aux.ids[0] - 1]();
+                  call TrickleTimer.reset[aux.ids[0] - 1]();
+                  //sMsg->key = aux.ids[0];
+                  //sMsg->counter = counter;
+                  //call SerialSend.send(AM_BROADCAST_ADDR, &s_buf, sizeof(serial_message_t));
+                } else {
+                  dbg("All", "%s Error storing %d+%d\n", sim_time_string(), aux.ids[0], aux.ids[1]);
+                }
+              }
+            } 
           }
         }
         
@@ -340,7 +361,8 @@ implementation {
         }
         
         ok = FALSE;
-        
+
+        // Tentar decodificar as combinações.        
         for (i = 0; i < MAX_STORE; i++) {
           if (contents[i].ids[0] != 0) {
             aux = combine(&content, &contents[i]);
