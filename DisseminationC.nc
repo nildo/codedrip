@@ -231,9 +231,9 @@ implementation {
                 matrix_n[i][j] = 0;
     }
 
-  	void mount_matrix(){
-  	    uint8_t i, j, c, pos;
-  	    i = j = 0;
+    void mount_matrix(){
+        uint8_t i, j, c, pos;
+  	i = j = 0;
 
       	for (c = 0; c < MAX_CSTORE; c++){
       		if(combinations[c].ids[0] != 0){
@@ -403,7 +403,7 @@ implementation {
 		}
 
 		//GAUSS-JORDAN XOR backward
-        for(l = row - 1; l >= 0; l--){
+        	for(l = row - 1; l >= 0; l--){
 		    for(c = 0; c < columns; c++){
 		        a = matrix_n[l][c];
                     if(a == 1){
@@ -449,18 +449,18 @@ implementation {
 		    }
 		}
 		//Print matrix
-	    dbg("Matrix", "The matrix after of method gauss-jordan\n");
-	    for( i = 0; i < row; i++){
-	        dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
+	    	dbg("Matrix", "The matrix after of method gauss-jordan\n");
+	    	for( i = 0; i < row; i++){
+	        	dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
 	        					                           matrix_n[i][5], matrix_n[i][6], matrix_n[i][7], matrix_n[i][8], matrix_n[i][9]);
-	    }
-	    dbg("Matrix", "\n\n");
+	    	}
+	    	dbg("Matrix", "\n\n");
     
     }
 
     void decode(){
         mount_matrix();
- 	    clean_buffer_comb();
+ 	clean_buffer_comb();
       	gauss_jordan();
       	fill_buffer();
       	clean_matrix();
