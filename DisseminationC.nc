@@ -231,10 +231,50 @@ implementation {
                 matrix_n[i][j] = 0;
     }
 
-    void mount_matrix(){
-        uint8_t i, j, c, pos;
-  	i = j = 0;
+     	void mount_matrix(){
+  	    uint8_t i, j, c, pos;
+  	    uint8_t l, k, a, b;
+  	    uint8_t temp[columns];
+  	    uint16_t tempcontent;
+  	    i = j = 0;
 
+      	for (j = 0; j < MAX_STORE; j++){
+            if(contents[j].ids[0] != 0){
+            	pos = contents[j].ids[0] - 1;
+                matrix_n[i][pos] = 1;
+                matrix_content[i] = contents[j].content;
+                i++;
+            }
+        }
+
+		for(l = 0; l < MAX_STORE; l++){
+		    for(c = 0; c < columns; c++){
+		        a = matrix_n[l][c];
+		        if(a == 1)
+		        	break;
+		            //Change line
+		        if(a == 0){
+		            for(k = l + 1; k < MAX_STORE; k++){
+		                b = matrix_n[k][c];
+		                if(b == 1){
+		                    for(j = 0; j < columns; j++){
+		                        temp[j] = matrix_n[l][j];
+		                        matrix_n[l][j] = matrix_n[k][j];
+		                        matrix_n[k][j] = temp[j];
+		                    }
+		                    tempcontent = matrix_content[l];
+		                    matrix_content[l] = matrix_content[k];
+		                    matrix_content[k] = tempcontent;
+		                    l = l + 1;
+		                    c = -1;
+		                    break;
+		                }
+		            }
+		        }
+		    }
+		}
+
+		j = 0;
       	for (c = 0; c < MAX_CSTORE; c++){
       		if(combinations[c].ids[0] != 0){
 	            while(combinations[c].ids[j] != 0){
@@ -248,14 +288,6 @@ implementation {
 	        }
         }
 
-      	for (j = 0; j < MAX_STORE; j++){
-            if(contents[j].ids[0] != 0){
-            	pos = contents[j].ids[0] - 1;
-                matrix_n[i][pos] = 1;
-                matrix_content[i] = contents[j].content;
-                i++;
-            }
-        }
     }
 
     uint8_t count_msgs(uint8_t buf[NUM_MSGS]){
@@ -347,6 +379,7 @@ implementation {
 	    int8_t i, j, l;
 	    uint8_t temp[columns];
 	    uint16_t tempcontent;
+	    n_originals = count_completion();
     	
     	//Print matrix
 		dbg("Matrix", "The matrix is\n");
@@ -356,33 +389,41 @@ implementation {
 	    }
 
 		//GAUSS-JORDAN Change lines
-		for(l = 0; l < row; l++){
-		    for(c = 0; c < columns; c++){
-		        a = matrix_n[l][c];
-		        if(a == 1)
-		        	break;
-		            //Change line
-		        if(a == 0){
-		            for(i = l + 1; i < row; i++){
-		                b = matrix_n[i][c];
-		                if(b == 1){
-		                    for(j = 0; j < columns; j++){
-		                        temp[j] = matrix_n[l][j];
-		                        matrix_n[l][j] = matrix_n[i][j];
-		                        matrix_n[i][j] = temp[j];
-		                    }
-		                    tempcontent = matrix_content[l];
-		                    matrix_content[l] = matrix_content[i];
-		                    matrix_content[i] = tempcontent;
-		                    l = l + 1;
-		                    c = -1;
-		                    break;
-		                }
-		            }
-		        }
-		    }
+		if(n_originals > 0){
+			for(l = n_originals - 1; l < row; l++){
+			    for(c = 0; c < columns; c++){
+			        a = matrix_n[l][c];
+			        if(a == 1)
+			        	break;
+			            //Change line
+			        if(a == 0){
+			            for(i = l + 1; i < row; i++){
+			                b = matrix_n[i][c];
+			                if(b == 1){
+			                    for(j = 0; j < columns; j++){
+			                        temp[j] = matrix_n[l][j];
+			                        matrix_n[l][j] = matrix_n[i][j];
+			                        matrix_n[i][j] = temp[j];
+			                    }
+			                    tempcontent = matrix_content[l];
+			                    matrix_content[l] = matrix_content[i];
+			                    matrix_content[i] = tempcontent;
+			                    l = l + 1;
+			                    c = -1;
+			                    break;
+			                }
+			            }
+			        }
+			    }
+			}
 		}
 
+    	//Print matrix
+		dbg("Matrix", "The matrix after change lines %d\n", n_originals);
+	    for( i = 0; i < row; i++){
+	        dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
+	        					                           matrix_n[i][5], matrix_n[i][6], matrix_n[i][7], matrix_n[i][8], matrix_n[i][9]);
+	    }
 
 		//GAUSS-JORDAN XOR forward
 		for(c = 0; c < columns; c++){
@@ -401,25 +442,13 @@ implementation {
 		        }
 		    }
 		}
+    	//Print matrix
+		dbg("Matrix", "The matrix apos forward\n");
+	    for( i = 0; i < row; i++){
+	        dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
+	        					                           matrix_n[i][5], matrix_n[i][6], matrix_n[i][7], matrix_n[i][8], matrix_n[i][9]);
+	    }
 
-		//GAUSS-JORDAN XOR backward
-        	for(l = row - 1; l >= 0; l--){
-		    for(c = 0; c < columns; c++){
-		        a = matrix_n[l][c];
-                    if(a == 1){
-	   			        for(i = l - 1; i >= 0; i--){
-		  			        b = matrix_n[i][c];
-			      		    //XOR Zero backward
-	 					    if(b == 1){ //Content 1 in column. XOR with the line
-						        for(k = 0; k < columns; k++){
-			 		                matrix_n[i][k] = matrix_n[i][k] ^ matrix_n[l][k];
-							    }
-							    matrix_content[i] = matrix_content[i] ^ matrix_content[l];
-							}
-						}               
-                    }
-			}
-		}
 
 		//GAUSS-JORDAN Change lines in order
 		for(l = 0; l < row; l++){
@@ -449,12 +478,12 @@ implementation {
 		    }
 		}
 		//Print matrix
-	    	dbg("Matrix", "The matrix after of method gauss-jordan\n");
-	    	for( i = 0; i < row; i++){
-	        	dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
+	    dbg("Matrix", "The matrix after of method gauss-jordan\n");
+	    for( i = 0; i < row; i++){
+	        dbg("Matrix", "%d %d %d %d %d %d %d %d %d %d\n", matrix_n[i][0], matrix_n[i][1], matrix_n[i][2], matrix_n[i][3], matrix_n[i][4],
 	        					                           matrix_n[i][5], matrix_n[i][6], matrix_n[i][7], matrix_n[i][8], matrix_n[i][9]);
-	    	}
-	    	dbg("Matrix", "\n\n");
+	    }
+	    dbg("Matrix", "\n\n");
     
     }
 
@@ -464,8 +493,7 @@ implementation {
       	gauss_jordan();
       	fill_buffer();
       	clean_matrix();
-  	}
-  
+    }
 
     /* EVENTS */
   
