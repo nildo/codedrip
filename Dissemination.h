@@ -22,7 +22,6 @@ typedef nx_struct content {
 typedef nx_struct dissemination_message {
   nx_uint16_t nodeid;
   content_t content;
-  nx_uint16_t nothing;
 } dissemination_message_t;
 
 typedef nx_struct serial_message {
